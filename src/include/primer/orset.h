@@ -59,7 +59,9 @@ class ORSet {
   auto ToString() const -> std::string;
 
  private:
-  // TODO(student): Add your private memeber variables to represent ORSet.
+  // TODO(student): Add your private memeber variables to represent ORSet. (finished)
+  std::vector<std::pair<T, uid_t>> elements;
+  std::vector<std::pair<T, uid_t>> tombstones;
 };
 
 }  // namespace bustub
