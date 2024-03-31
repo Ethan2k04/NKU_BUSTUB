@@ -17,7 +17,7 @@ class BasicPageGuard {
   BasicPageGuard(const BasicPageGuard &) = delete;
   auto operator=(const BasicPageGuard &) -> BasicPageGuard & = delete;
 
-  /** TODO(P1): Add implementation
+  /** TODO(P2): Add implementation
    *
    * @brief Move constructor for BasicPageGuard
    *
@@ -29,7 +29,7 @@ class BasicPageGuard {
    */
   BasicPageGuard(BasicPageGuard &&that) noexcept;
 
-  /** TODO(P1): Add implementation
+  /** TODO(P2): Add implementation
    *
    * @brief Drop a page guard
    *
@@ -40,7 +40,7 @@ class BasicPageGuard {
    */
   void Drop();
 
-  /** TODO(P1): Add implementation
+  /** TODO(P2): Add implementation
    *
    * @brief Move assignment for BasicPageGuard
    *
@@ -61,7 +61,7 @@ class BasicPageGuard {
    */
   ~BasicPageGuard();
 
-  /** TODO(P1): Add implementation
+  /** TODO(P2): Add implementation
    *
    * @brief Upgrade a BasicPageGuard to a ReadPageGuard
    *
@@ -72,7 +72,7 @@ class BasicPageGuard {
    */
   auto UpgradeRead() -> ReadPageGuard;
 
-  /** TODO(P1): Add implementation
+  /** TODO(P2): Add implementation
    *
    * @brief Upgrade a BasicPageGuard to a WritePageGuard
    *
@@ -83,9 +83,9 @@ class BasicPageGuard {
    */
   auto UpgradeWrite() -> WritePageGuard;
 
-  auto PageId() -> page_id_t { return page_->GetPageId(); }
+  auto PageId() const -> page_id_t { return page_->GetPageId(); }
 
-  auto GetData() -> const char * { return page_->GetData(); }
+  auto GetData() const -> const char * { return page_->GetData(); }
 
   template <class T>
   auto As() -> const T * {
@@ -114,11 +114,11 @@ class BasicPageGuard {
 class ReadPageGuard {
  public:
   ReadPageGuard() = default;
-  ReadPageGuard(BufferPoolManager *bpm, Page *page);
+  ReadPageGuard(BufferPoolManager *bpm, Page *page) : guard_(bpm, page) {}
   ReadPageGuard(const ReadPageGuard &) = delete;
   auto operator=(const ReadPageGuard &) -> ReadPageGuard & = delete;
 
-  /** TODO(P1): Add implementation
+  /** TODO(P2): Add implementation
    *
    * @brief Move constructor for ReadPageGuard
    *
@@ -128,7 +128,7 @@ class ReadPageGuard {
    */
   ReadPageGuard(ReadPageGuard &&that) noexcept;
 
-  /** TODO(P1): Add implementation
+  /** TODO(P2): Add implementation
    *
    * @brief Move assignment for ReadPageGuard
    *
@@ -137,7 +137,7 @@ class ReadPageGuard {
    */
   auto operator=(ReadPageGuard &&that) noexcept -> ReadPageGuard &;
 
-  /** TODO(P1): Add implementation
+  /** TODO(P2): Add implementation
    *
    * @brief Drop a ReadPageGuard
    *
@@ -148,7 +148,7 @@ class ReadPageGuard {
    */
   void Drop();
 
-  /** TODO(P1): Add implementation
+  /** TODO(P2): Add implementation
    *
    * @brief Destructor for ReadPageGuard
    *
@@ -157,9 +157,9 @@ class ReadPageGuard {
    */
   ~ReadPageGuard();
 
-  auto PageId() -> page_id_t { return guard_.PageId(); }
+  auto PageId() const -> page_id_t { return guard_.PageId(); }
 
-  auto GetData() -> const char * { return guard_.GetData(); }
+  auto GetData() const -> const char * { return guard_.GetData(); }
 
   template <class T>
   auto As() -> const T * {
@@ -174,11 +174,11 @@ class ReadPageGuard {
 class WritePageGuard {
  public:
   WritePageGuard() = default;
-  WritePageGuard(BufferPoolManager *bpm, Page *page);
+  WritePageGuard(BufferPoolManager *bpm, Page *page) : guard_(bpm, page) {}
   WritePageGuard(const WritePageGuard &) = delete;
   auto operator=(const WritePageGuard &) -> WritePageGuard & = delete;
 
-  /** TODO(P1): Add implementation
+  /** TODO(P2): Add implementation
    *
    * @brief Move constructor for WritePageGuard
    *
@@ -188,7 +188,7 @@ class WritePageGuard {
    */
   WritePageGuard(WritePageGuard &&that) noexcept;
 
-  /** TODO(P1): Add implementation
+  /** TODO(P2): Add implementation
    *
    * @brief Move assignment for WritePageGuard
    *
@@ -197,7 +197,7 @@ class WritePageGuard {
    */
   auto operator=(WritePageGuard &&that) noexcept -> WritePageGuard &;
 
-  /** TODO(P1): Add implementation
+  /** TODO(P2): Add implementation
    *
    * @brief Drop a WritePageGuard
    *
@@ -208,7 +208,7 @@ class WritePageGuard {
    */
   void Drop();
 
-  /** TODO(P1): Add implementation
+  /** TODO(P2): Add implementation
    *
    * @brief Destructor for WritePageGuard
    *
@@ -217,9 +217,9 @@ class WritePageGuard {
    */
   ~WritePageGuard();
 
-  auto PageId() -> page_id_t { return guard_.PageId(); }
+  auto PageId() const -> page_id_t { return guard_.PageId(); }
 
-  auto GetData() -> const char * { return guard_.GetData(); }
+  auto GetData() const -> const char * { return guard_.GetData(); }
 
   template <class T>
   auto As() -> const T * {
