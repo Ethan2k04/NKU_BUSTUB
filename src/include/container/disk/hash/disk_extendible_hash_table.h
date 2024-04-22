@@ -227,35 +227,6 @@ class DiskExtendibleHashTable {
     }
   }
 
-  auto FindBucketPageID(const K &key, page_id_t &bucket_page_id) const -> bool {
-    if (header_page_id_ == INVALID_PAGE_ID) {
-      return false;
-    }
-    // Fetch the header page
-    ReadPageGuard header_guard = bpm_->FetchPageRead(header_page_id_);
-    auto header = header_guard.As<ExtendibleHTableHeaderPage>();
-
-    // Fetch the directory page
-    uint32_t directory_idx = header->HashToDirectoryIndex(Hash(key));
-    page_id_t directory_page_id = header->GetDirectoryPageId(directory_idx);
-    header_guard.Drop();
-    if (directory_page_id == INVALID_PAGE_ID) {
-      return false;
-    }
-    ReadPageGuard directory_guard = bpm_->FetchPageRead(directory_page_id);
-    auto directory = directory_guard.As<ExtendibleHTableDirectoryPage>();
-
-    // Fetch the bucket page id
-    uint32_t bucket_idx = directory->HashToBucketIndex(Hash(key));
-    bucket_page_id = directory->GetBucketPageId(bucket_idx);
-    directory_guard.Drop();
-    if (bucket_page_id == INVALID_PAGE_ID) {
-      return false;
-    }
-
-    return true;
-  }
-
   // member variables
   std::string index_name_;
   BufferPoolManager *bpm_;
