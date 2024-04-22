@@ -85,6 +85,8 @@ class ExtendibleHTableBucketPage {
    */
   auto Remove(const KeyType &key, const KeyComparator &cmp) -> bool;
 
+  void InsertAt(uint32_t idx, const KeyType &key, const ValueType &value);
+
   void RemoveAt(uint32_t bucket_idx);
 
   /**
@@ -130,6 +132,10 @@ class ExtendibleHTableBucketPage {
    * Prints the bucket's occupancy information
    */
   void PrintBucket() const;
+
+  auto KeyIndex(const KeyType &key, const KeyComparator &cmp) const -> uint32_t;
+
+  void Clear() { size_ = 0; }
 
  private:
   uint32_t size_;

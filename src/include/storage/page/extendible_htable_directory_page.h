@@ -101,7 +101,7 @@ class ExtendibleHTableDirectoryPage {
    *
    * @return mask of global_depth 1's and the rest 0's (with 1's from LSB upwards)
    */
-  auto GetGlobalDepthMask() const -> uint32_t;
+  auto GetGlobalDepthMask() const -> uint32_t { return (1 << global_depth_) - 1; };
 
   /**
    * GetLocalDepthMask - same as global depth mask, except it
@@ -119,7 +119,7 @@ class ExtendibleHTableDirectoryPage {
    */
   auto GetGlobalDepth() const -> uint32_t;
 
-  auto GetMaxDepth() const -> uint32_t;
+  auto GetMaxDepth() const -> uint32_t { return max_depth_; };
 
   /**
    * Increment the global depth of the directory
