@@ -123,6 +123,139 @@ class DiskExtendibleHashTable {
                       ExtendibleHTableBucketPage<K, V, KC> *new_bucket, uint32_t new_bucket_idx,
                       uint32_t local_depth_mask);
 
+  auto SplitBucket(ExtendibleHTableDirectoryPage *directory, ExtendibleHTableBucketPage<K, V, KC> *bucket,
+                   uint32_t bucket_idx) -> bool {
+    // Create the split bucket and insert it into the directory
+    page_id_t split_page_id;
+    BasicPageGuard split_bucket_guard = bpm_->NewPageGuarded(&split_page_id);
+    if (split_page_id == INVALID_PAGE_ID) {
+      return false;
+    }
+    auto split_bucket = split_bucket_guard.AsMut<ExtendibleHTableBucketPage<K, V, KC>>();
+    split_bucket->Init();
+
+    uint32_t split_idx = directory->GetSplitImageIndex(bucket_idx);
+    uint32_t local_depth = directory->GetLocalDepth(bucket_idx);
+    directory->SetBucketPageId(split_idx, split_page_id);
+    directory->SetLocalDepth(split_idx, local_depth);
+
+    // Populate all split bucket pointers
+    uint32_t idx_diff = 1 << local_depth;
+    for (int i = bucket_idx - idx_diff; i >= 0; i -= idx_diff) {
+      directory->SetLocalDepth(i, local_depth);
+    }
+    for (int i = bucket_idx + idx_diff; i < static_cast<int>(directory->Size()); i += idx_diff) {
+      directory->SetLocalDepth(i, local_depth);
+    }
+    for (int i = split_idx - idx_diff; i >= 0; i -= idx_diff) {
+      directory->SetBucketPageId(i, split_page_id);
+      directory->SetLocalDepth(i, local_depth);
+    }
+    for (int i = split_idx + idx_diff; i < static_cast<int>(directory->Size()); i += idx_diff) {
+      directory->SetBucketPageId(i, split_page_id);
+      directory->SetLocalDepth(i, local_depth);
+    }
+
+    // Redistribute key value pairs among newly split buckets
+    page_id_t bucket_page_id = directory->GetBucketPageId(bucket_idx);
+    if (bucket_page_id == INVALID_PAGE_ID) {
+      return false;
+    }
+    int size = bucket->Size();
+    std::list<std::pair<K, V>> entries;
+    for (int i = 0; i < size; i++) {
+      entries.push_back(bucket->EntryAt(i));
+    }
+    bucket->Clear();
+
+    for (const auto &entry : entries) {
+      uint32_t target_idx = directory->HashToBucketIndex(Hash(entry.first));
+      page_id_t target_page_id = directory->GetBucketPageId(target_idx);
+      assert(target_page_id == bucket_page_id || target_page_id == split_page_id);
+      if (target_page_id == bucket_page_id) {
+        bucket->Insert(entry.first, entry.second, cmp_);
+      } else if (target_page_id == split_page_id) {
+        split_bucket->Insert(entry.first, entry.second, cmp_);
+      }
+    }
+    return true;
+  }
+
+  void TryMergeBucket(ExtendibleHTableDirectoryPage *directory, ExtendibleHTableBucketPage<K, V, KC> *bucket,
+                      uint32_t bucket_idx) {
+    // Recursively merge
+    while (true) {
+      if (directory->GetLocalDepth(bucket_idx) == 0) {
+        return;
+      }
+      uint32_t split_idx = directory->GetSplitImageIndex(bucket_idx);
+      page_id_t split_page_id = directory->GetBucketPageId(split_idx);
+
+      if (directory->GetLocalDepth(split_idx) != directory->GetLocalDepth(bucket_idx)) {
+        return;
+      }
+
+      WritePageGuard split_bucket_guard = bpm_->FetchPageWrite(split_page_id);
+      auto split_bucket = split_bucket_guard.AsMut<ExtendibleHTableBucketPage<K, V, KC>>();
+
+      if (!bucket->IsEmpty() && !split_bucket->IsEmpty()) {
+        return;
+      }
+
+      int size = split_bucket->Size();
+      for (int i = 0; i < size; i++) {
+        std::pair<K, V> entry = split_bucket->EntryAt(i);
+        bucket->Insert(entry.first, entry.second, cmp_);
+      }
+      split_bucket->Clear();
+      split_bucket_guard.Drop();
+
+      page_id_t bucket_page_id = directory->GetBucketPageId(bucket_idx);
+      directory->DecrLocalDepth(bucket_idx);
+      uint32_t local_depth = directory->GetLocalDepth(bucket_idx);
+
+      // Update all related bucket pointers
+      uint32_t idx_diff = 1 << local_depth;
+      for (int i = bucket_idx - idx_diff; i >= 0; i -= idx_diff) {
+        directory->SetBucketPageId(i, bucket_page_id);
+        directory->SetLocalDepth(i, local_depth);
+      }
+      for (int i = bucket_idx + idx_diff; i < static_cast<int>(directory->Size()); i += idx_diff) {
+        directory->SetBucketPageId(i, bucket_page_id);
+        directory->SetLocalDepth(i, local_depth);
+      }
+    }
+  }
+
+  auto FindBucketPageID(const K &key, page_id_t &bucket_page_id) const -> bool {
+    if (header_page_id_ == INVALID_PAGE_ID) {
+      return false;
+    }
+    // Fetch the header page
+    ReadPageGuard header_guard = bpm_->FetchPageRead(header_page_id_);
+    auto header = header_guard.As<ExtendibleHTableHeaderPage>();
+
+    // Fetch the directory page
+    uint32_t directory_idx = header->HashToDirectoryIndex(Hash(key));
+    page_id_t directory_page_id = header->GetDirectoryPageId(directory_idx);
+    header_guard.Drop();
+    if (directory_page_id == INVALID_PAGE_ID) {
+      return false;
+    }
+    ReadPageGuard directory_guard = bpm_->FetchPageRead(directory_page_id);
+    auto directory = directory_guard.As<ExtendibleHTableDirectoryPage>();
+
+    // Fetch the bucket page id
+    uint32_t bucket_idx = directory->HashToBucketIndex(Hash(key));
+    bucket_page_id = directory->GetBucketPageId(bucket_idx);
+    directory_guard.Drop();
+    if (bucket_page_id == INVALID_PAGE_ID) {
+      return false;
+    }
+
+    return true;
+  }
+
   // member variables
   std::string index_name_;
   BufferPoolManager *bpm_;
